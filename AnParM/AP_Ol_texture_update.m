@@ -1,32 +1,100 @@
-% Test harness to begin conversion of odfcalc   
-function AP_odfcalc_Ol_simple()
+% AP_Ol_texture_update - Update an input Olivine texture (as a set of Euler 
+%                        angles) based on a velocity gradient tensor, a finite  
+%                        strain ellipse representing previous deformation, and 
+%                        a set of slip system parameters.
+%
+% // Part of AnParM - A MATLAB toolkit for the fast analytical modelling of  //
+% //                         crystal deformation                             //
+%  
+%  Usage:
+%
+%     [new_texture] = AP_Ol_texture_update(texture,rn,tau,vgrad,r12,r23,r13,dt)
+%        Input parameters:
+%           texture : Initial texture to be updated. This is an 3 x M list of
+%                     Euler angles in degrees, representing the initial 
+%                     orientation of the M crystals.
+%                rn : Power law coefficient to apply (usually 3.5).
+%               tau : CRSSs of the slip systems. This is a 1 x N vector where
+%                     the length dictates the number of systems to be updated
+%             vgrad : the (3 x 3) velocity gradient tensor representing the
+%                     deformation to be applied. This must be in the frame
+%                     of reference of the finite strain ellipse.
+%       r12,r23,r13 : The finite strain ellipse axis parameters. These are the
+%                     log ratios of the FSE major axes. 
+%                dt : the timestep length to run. 
+%
+%        Output parameters:
+%       new_texture : the updated texture. An M x 3 list of Euler angles in
+%                     degrees, representing the new orientation of the 
+%                     crystals.
+%
+% This is based on the FORTRAN code ODFCALC written by Neil Goulding and Neil Ribe. 
+%
+% Reference.
+% ~~~~~~~~~~
+%
+%  Goulding, NG, Ribe, NM, Castelnau, O., Walker A. and Wookey, J. Analytical
+%     parameterization of self-consistent polycrystal mechanics: Fast calculation 
+%     of upper mantle anisotropy. Geophys. J. Int., in press.
+%
+% See also: 
+
+% Copyright (c) 2015, Neil Goulding, Neil Ribe, Olivier Castelnau, 
+%                     Andrew Walker and James Wookey
+%
+% All rights reserved.
+% 
+% Redistribution and use in source and binary forms, with or without 
+% modification, are permitted provided that the following conditions are met:
+% 
+%    * Redistributions of source code must retain the above copyright notice, 
+%      this list of conditions and the following disclaimer.
+%    * Redistributions in binary form must reproduce the above copyright 
+%      notice, this list of conditions and the following disclaimer in the 
+%      documentation and/or other materials provided with the distribution.
+%    * Neither the name of the University of Bristol nor the names of its 
+%      contributors may be used to endorse or promote products derived from 
+%      this software without specific prior written permission.
+% 
+% THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+% AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+% IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+% ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+% LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+% CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+% SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+% INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+% CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+% ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+% POSSIBILITY OF SUCH DAMAGE.
+
+function [new_texture] = ...
+      AP_Ol_texture_update(texture,rn,tau,vgrad,r12,r23,r13,dt)
+
+   % set some parameters, following the FORTRAN code
+   tiny = 1e-4 ;   
+
+   % get some dimensions
+   ngrains = length(texture) ;
+   nslip = length(tau) ;
+
+   % create output matrix
+   new_texture = texture ;
+   
+   % convert input texture to radians
+   texture = texture .* (pi/180) ;
+
+   % check vgrad trace.
+   assert(abs(trace(vgrad))<tiny, ...
+      'Trace of the velocity gradient matrix is non-zero.') ;
       
-   % hardwire inputs
+   % check three or less slip systems were requested.
+   assert(nslip<=3,'Too many slip systems were requested (>3)')   
    
-   % velocity gradient tensor
-   vgrad = [-1 0 0 ; 0 0.5 0 ; 0 0 0.5] ;
-   
-   % power law exponent
-   rn = 3.5 ;
-   % CRSS
-   tau = [0.3333 0.6667 1.0] ;
-   
-   % number of grains
-   ngrains = 2000 ;
-   
-   % t
-   dt = 0.6 ;
-   
-   % only one step allowed currently
-   
-   % check vgrad trace
-   
-   %
+   % slip system relative strengths
    p12 = log(tau(1)/tau(2)) ;
    p23 = log(tau(2)/tau(3)) ; 
    p13 = log(tau(1)/tau(3)) ;
-   
-   nslip = 3 ;
    
    eps = zeros([3 3 3]) ;
    
@@ -36,17 +104,6 @@ function AP_odfcalc_Ol_simple()
    eps(2,1,3) = -1 ;
    eps(3,2,1) = -1 ;
    eps(1,3,2) = -1 ;
-   
-   % build random texture
-   [ eulers ] = MVT_make_random_texture( ngrains ) ;
-   
-   % make it an n x 3 list, and convert to radians
-   
-   eulers = (pi/180) * eulers' ;
-      
-   % start of calculations
-   
-   %eulers = load('my_eulers.dat')*pi/180 ;
    
    % Strain Rate Tensor
    bige = zeros(3,3) ;
@@ -61,48 +118,42 @@ function AP_odfcalc_Ol_simple()
             (vgrad(1,3) - vgrad(3,1))/2 ...
             (vgrad(2,1) - vgrad(1,2))/2] ;
    
-   
-   % initial time
-   t = 0 ;
-   
-   % initial FSE parameters
-   r12 = 0 ; r23 = 0 ; r13 = 0 ; % spherical
-   
+   % Calculate the Schmidt tensor coefficients
    [bigA1,bigA2,bigA3,bigB1,bigB2,bigB3] = ...
       amplitudes(p12,p23,p13,r12,r23,r13) ;
 
    % loop over grains
    for ig=1:ngrains
-      % calculate the spin
-      a=dircos(eulers(ig,:)) ;
+      
+      % calculate the direction cosines
+      a = dircos(texture(:,ig)) ;
+      
+      % calcualte slip vectors
       [en,el] = slipvectors(a) ;
       
-      %
-      gamdot = sliprates(nslip,en,el, bige, ...
+      % calculate sliprates
+      gamdot = sliprates(nslip,en,el,bige, ...
                          bigA1,bigA2,bigA3, ...
                          bigB1,bigB2,bigB3) ;
+      
+      % calculate spin
       omc = crystalspin(eps,en,el,gamdot,nslip) ;
       
-      % total spin
+      % include frame of reference rotation
       om = omc + bigom ;
       
-      % spin rate
-      gdot = gdotcalc(om,eulers(ig,:)) ;
-      
-      
+      % calculate spin rate for the crystal
+      gdot = gdotcalc(om,texture(:,ig)) ;
+            
       % apply the spin rate for the appropriate time
-      eulers(ig,:) = eulers(ig,:) + dt.*gdot ;
-      disp( eulers(ig,:) ) ;
+      new_texture(:,ig) = texture(:,ig) + dt.*gdot' ;
       
-   end      
+   end
    
-
-
-   eulers_out = 180/pi * eulers' ;
-   MVT_write_VPSC_file('simple.out', eulers_out, 'Test output')
+   % transpose, and convert new_texture to degrees.
+   new_texture = new_texture .* (180/pi) ;
    
-         
-end
+end   
 
 function [gdot] = gdotcalc(om,eul)
    cosph = cos(eul(1)) ;
@@ -138,7 +189,7 @@ function [gamdot] = sliprates(nslip,en,el, bige, ...
    bigS=zeros(3,3) ;
    gamdot = [0 0 0] ;
    for is=1:nslip
-      % calculate the Schmidt tensor
+      % calculate the Schmidt tensor.
       for i=1:3
          for j=1:3
             bigS(j,i) = 0.5*(en(is,i)*el(is,j) + en(is,j)*el(is,i)) ;
@@ -171,10 +222,10 @@ function [a] = dircos(eul) ;
    a(3,3) = cos(eul(2)) ;
 end
 
+% 
 function [en,el] = slipvectors(a)
    en = zeros(3,3) ;
    el = zeros(3,3) ;
-   
    for i=1:3
       %  Slip system (010)[100]
       en(1,i) = a(2,i) ;
@@ -187,7 +238,8 @@ function [en,el] = slipvectors(a)
       el(3,i) = a(3,i) ;
    end
 end
-   
+
+% amplitudes - calculate the amplitudes of the Schmidt tensor.   
 function [bigA1,bigA2,bigA3,bigB1,bigB2,bigB3] = ...
    amplitudes(p12,p23,p13,r12,r23,r13)
    
@@ -245,6 +297,4 @@ function [bigA1,bigA2,bigA3,bigB1,bigB2,bigB3] = ...
    
    bigB3 = [cala1*calB13 cala2*calB13 cala3*calB13] ;
 
-   end
-   
-   
+end
