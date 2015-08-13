@@ -1,11 +1,11 @@
 % Test AnPar method for analytical simple shear example.
-function AP_odfcalc_Ol_simple_shear_test(istepmax)
+function test_AP_Ol_simple_shear_2(istepmax)
       
    % power law exponent
    rn = 3.5 ;
    
    % vgrad
-   vgrad = [1 -1 0 ; 1 -1 0 ; 0 0 0] ;
+   vgrad = [1.0  -1 0 ; 1 -1 0 ; 0 0 0] ;
    
    % CRSS
    tau = [0.3333 0.6667 1.0] ;
@@ -16,37 +16,34 @@ function AP_odfcalc_Ol_simple_shear_test(istepmax)
    % time step
    dt = 0.02165 ;
    
-   % number of slip systems
-   nslip = 3 ;
-   
    % build initial random texture
-   [ eulers ] = MVT_make_random_texture( ngrains ) ;
-   
-   % make it an n x 3 list, and convert to radians
-   initial_texture = (pi/180) * eulers' ;
-   
-   texture = initial_texture ;
+   [ texture ] = MVT_make_random_texture( ngrains ) ;
    
    c = [1 1 1] ; % initial FSE
    M = eye(3,3) ;
    
    if istepmax>25, error('istepmax must be <=25'), end ;
    
+   ivec = [0 ; 1 ; 0] ;
+   
    for istep = 1:istepmax
-      % get vgrad and FSE
-      %[vgrad,r12,r23,r13] = setup_VGRAD_FSE(istep) ;
       
       % calculate log ratios
       r12 = log(c(1)/c(2)) ;
       r23 = log(c(2)/c(3)) ;
       r13 = log(c(1)/c(3)) ;      
       
+      
       % rotate the vgrad into the *current* FSE frame: this is breaking it.
-      vgradR = M*vgrad 
+      vgradR = M*vgrad*M' 
+      
+      fprintf('r12,r23,r13: %8.4f %8.4f %8.4f\n',r12,r23,r13)
+      disp('vgradR:')
+      disp(vgradR) ;
       
       % run a texture calculation step
-      [new_texture] = AP_odfcalc_Ol_step(texture,vgrad,...
-                      r12,r23,r13,rn,tau,ngrains,dt,nslip) ;
+      [new_texture] = ...
+            AP_Ol_texture_update(texture,rn,tau,vgradR,r12,r23,r13,dt) ;
 
       % feed the updated texure back in                   
       texture = new_texture ;
@@ -56,14 +53,18 @@ function AP_odfcalc_Ol_simple_shear_test(istepmax)
             
       c=cnew ;
       
+      % plot the finite strain ellipse
+      
+      
+      ivec = R * ivec ;
+            
       % accrue the rotation
-      M = M*R ;
+      M = R*M ;
       
    end
       
    % output the final texture
-   texture_out = 180/pi * new_texture' ;
-   MVT_write_VPSC_file('simple_shear2.out', texture_out, 'Simple shear output')
+   MVT_write_VPSC_file('simple_shear2.out', texture, 'Simple shear output')
    
          
 end
@@ -78,15 +79,16 @@ function [cnew,R] = finitestrain(c,vgrad,t) ;
       end
    end
    
-   % finite strain ellipse axes
+   % finite strain ellipse axes perturbation
    cnew = c .* [exp(bige(1,1)*t) exp(bige(2,2)*t) exp(bige(3,3)*t) ] ;
    
+
    % rotation rates vector
    bigom = [(vgrad(3,2) - vgrad(2,3))/2 ...
             (vgrad(1,3) - vgrad(3,1))/2 ...
-            (vgrad(2,1) - vgrad(1,2))/2] ;
+            (vgrad(2,1) - vgrad(1,2))/2] 
    
-   % rotation matrix
+   % form rotation matrix
    [ R ] = MS_rotM( bigom(1)*t*(180/pi), ...
                     bigom(2)*t*(180/pi), ...
                     bigom(3)*t*(180/pi) ) ;

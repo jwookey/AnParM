@@ -40,7 +40,7 @@ function test_AP_Ol_uniaxial_compression()
       
    % plot with MTEX
    MVT_olivine_pole_from_vpsc('uniaxial_compression.out','scale',[0 17], ...
-      'writefile','unaxial_compression','png') ;   
+      'writefile','uniaxial_compression','png') ;   
 
 end
 

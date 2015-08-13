@@ -1,5 +1,5 @@
 % Test AnPar method for analytical simple shear example.
-function AP_odfcalc_Ol_simple_shear_test(istepmax)
+function test_AP_Ol_simple_shear_1(istepmax)
       
    % power law exponent
    rn = 3.5 ;
@@ -13,17 +13,9 @@ function AP_odfcalc_Ol_simple_shear_test(istepmax)
    % time step
    dt = 0.02165 ;
    
-   % number of slip systems
-   nslip = 3 ;
-   
    % build initial random texture
-   [ eulers ] = MVT_make_random_texture( ngrains ) ;
-   
-   % make it an n x 3 list, and convert to radians
-   initial_texture = (pi/180) * eulers' ;
-   
-   texture = initial_texture ;
-   
+   [ texture ] = MVT_make_random_texture( ngrains ) ;
+      
    if istepmax>25, error('istepmax must be <=25'), end ;
    
    for istep = 1:istepmax
@@ -31,17 +23,19 @@ function AP_odfcalc_Ol_simple_shear_test(istepmax)
       [vgrad,r12,r23,r13] = setup_VGRAD_FSE(istep) ;
 
       % run a texture calculation step
-      [new_texture] = AP_odfcalc_Ol_step(texture,vgrad,...
-                      r12,r23,r13,rn,tau,ngrains,dt,nslip) ;
+      [new_texture] = ...
+            AP_Ol_texture_update(texture,rn,tau,vgrad,r12,r23,r13,dt) ;
 
       % feed the updated texure back in                   
       texture = new_texture ;
    end
       
    % output the final texture
-   texture_out = 180/pi * new_texture' ;
-   MVT_write_VPSC_file('simple_shear.out', texture_out, 'Simple shear output')
+   MVT_write_VPSC_file('simple_shear.out', texture, 'Simple shear output')
    
+   % plot with MTEX
+   MVT_olivine_pole_from_vpsc('simple_shear.out','scale',[0 6.8], ...
+      'writefile','simple_shear1','png') ;
          
 end
 
