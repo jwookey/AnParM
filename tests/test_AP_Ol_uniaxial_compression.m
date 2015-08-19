@@ -34,6 +34,9 @@ function test_AP_Ol_uniaxial_compression()
       texture = new_texture ;
    end
    
+   % rotate the texture FoR to match Goulding et al Figure 7 (vertical compression axis)
+   [texture]=AP_rotate_texture_Euler(texture,0,90,90) ;
+   
    % output the final texture    
    MVT_write_VPSC_file('uniaxial_compression.out', ...
       texture, 'Uniaxial compression output') ;

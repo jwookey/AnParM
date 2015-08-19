@@ -1,5 +1,5 @@
 % Test AnPar method for analytical simple shear example.
-function test_AP_Ol_simple_shear_1(istepmax)
+function test_AP_Ol_simple_shear_1(nstep)
       
    % power law exponent
    rn = 3.5 ;
@@ -16,19 +16,25 @@ function test_AP_Ol_simple_shear_1(istepmax)
    % build initial random texture
    [ texture ] = MVT_make_random_texture( ngrains ) ;
       
-   if istepmax>25, error('istepmax must be <=25'), end ;
+   if nstep>25, error('nstep must be <=25'), end ;
    
-   for istep = 1:istepmax
+   [vgradA,phA,r12A,r13A,r23A] = analytical_simple_shear(dt,nstep) ;
+   
+   for istep = 1:nstep
       % get vgrad and FSE
-      [vgrad,r12,r23,r13] = setup_VGRAD_FSE(istep) ;
+      %[vgrad,r12,r23,r13] = setup_VGRAD_FSE(istep) ;
 
       % run a texture calculation step
-      [new_texture] = ...
-            AP_Ol_texture_update(texture,rn,tau,vgrad,r12,r23,r13,dt) ;
+      [new_texture] = AP_Ol_texture_update(texture,rn,tau,...
+                                           squeeze(vgradA(istep,:,:)), ...
+                                           r12A(istep),r23A(istep),r13A(istep),dt) ;
 
       % feed the updated texure back in                   
       texture = new_texture ;
    end
+   
+   % rotate the texture to match Goulding et al Figure 8 (shear plane horizontal)
+   [texture]=AP_rotate_texture(texture,135,0,0) ;
       
    % output the final texture
    MVT_write_VPSC_file('simple_shear.out', texture, 'Simple shear output')
@@ -37,6 +43,28 @@ function test_AP_Ol_simple_shear_1(istepmax)
    MVT_olivine_pole_from_vpsc('simple_shear.out','scale',[0 6.8], ...
       'writefile','simple_shear1','png') ;
          
+end
+
+function [vgrad,ph,r12,r13,r23] = analytical_simple_shear(dt,nstep)
+   % from Ribe and Yu, 1991
+   
+   vgrad = zeros(nstep,3,3) ;
+   
+   ph = -0.5*atan(([1:nstep]-1)*dt) ;
+   
+   for istep=1:nstep
+      E = [ cos(2*ph(istep))  sin(2*ph(istep)) 0 ; ...
+            sin(2*ph(istep)) -cos(2*ph(istep)) 0 ; ...
+            0                 0                0 ] ;
+      
+      W = [ 0 -1 0 ; 1 0 0 ; 0 0 0 ] ;
+      vgrad(istep,:,:) = E + W ;
+   end
+   
+   r12=2*asinh(dt*[0:nstep-1]) ;
+   r23=-asinh(dt*[0:nstep-1]) ;
+   r13=asinh(dt*[0:nstep-1]) ;
+   
 end
 
 function [vgrad,r12,r23,r13] = setup_VGRAD_FSE(i)
@@ -101,6 +129,7 @@ RXX = [0.00000000000   -0.00000000000    0.00000000000 ; ...
        0.95875499600   -0.47937749800    0.47937749800 ; ...
        0.99734705740   -0.49867352870    0.49867352870 ] ;
 
+% Finite strain ellipse ratios
 r12 = RXX(i,1) ;
 r23 = RXX(i,2) ;
 r13 = RXX(i,3) ;
