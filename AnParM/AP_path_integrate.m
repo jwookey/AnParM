@@ -60,29 +60,67 @@
 % POSSIBILITY OF SUCH DAMAGE.
 
 function [Xs, Ls, ts] = AP_path_integrate( X0, tstart, tend, ...
-    dt, dx, velocity_f)
+    dt, dx, velocity_f, varargin)
 
-    % Setup output arrays, n is the number of time steps to run
-    % We include the first point in the output (hence the + 1)
-    n = fix((tend - tstart)/dt) + 1;
-    Xs = zeros(3, n);
-    Ls = zeros(3, 3, n);
-    ts = zeros(1, n);
+    % Set up defaults
+    backwards = 0;
+    integrator = @AP_rk4_step;
     
-    % Loop over time steps of path line
-    Xi = X0;
-    ti = tstart;
-    % Store first point
-    ts(1) = ti;
-    Xs(:, 1) = Xi;
-    Ls(:, :, 1) = AP_veloc_grad(Xi, ti, velocity_f, dx);
-    for i = 2:n
-        % Update point
-        [Xi, ti] = AP_rk4_step( Xi, ti, velocity_f, dt );
-        % Store current point
-        ts(i) = ti;
-        Xs(:, i) = Xi;
-        Ls(:, :, i) = AP_veloc_grad(Xi, ti, velocity_f, dx);
+    % Process the optional arguments
+    iarg = 1 ;
+    while iarg<=(length(varargin))
+       switch varargin{iarg}
+          case 'backwards'
+             backwards = 1 ;
+             iarg = iarg + 1 ;
+          case 'integrator'
+             integrator = varargin{iarg+1} ;
+             iarg = iarg + 2 ;
+          otherwise 
+             error('Unknown flag') ;   
+       end   
+    end 
+
+
+    if (backwards)
+        
+        % Get points going backwards by using a modified 
+        % rk4 step, inverting the end time and dt.
+        [Xs, Ls_f, ts] = AP_path_integrate( X0, tstart, -tend, ...
+            -dt, dx, velocity_f, 'integrator', @AP_rk4_step_backwards);
+        
+        ts = fliplr(ts);
+        Xs = fliplr(Xs);
+        n = length(ts);
+        Ls = zeros(3, 3, n);
+        for i = 1:n
+            Ls(:,:,i) = Ls_f(:,:,(n-i)+1);
+        end
+    else
+
+        % Setup output arrays, n is the number of time steps to run
+        % We include the first point in the output (hence the + 1)
+        n = fix((tend - tstart)/dt) + 1;
+        Xs = zeros(3, n);
+        Ls = zeros(3, 3, n);
+        ts = zeros(1, n);
+
+        % Loop over time steps of path line
+        Xi = X0;
+        ti = tstart;
+        % Store first point
+        ts(1) = ti;
+        Xs(:, 1) = Xi;
+        Ls(:, :, 1) = AP_veloc_grad(Xi, ti, velocity_f, dx);
+        for i = 2:n
+            % Update point
+            [Xi, ti] = integrator( Xi, ti, velocity_f, dt );
+            % Store current point
+            ts(i) = ti;
+            Xs(:, i) = Xi;
+            Ls(:, :, i) = AP_veloc_grad(Xi, ti, velocity_f, dx);
+        end
+    
     end
 
 end
@@ -102,6 +140,22 @@ function  [Xn, tn] = AP_rk4_step( Xi, t, velocity_f, dt )
     k4 = velocity_f(Xi + dt*k3 , t + dt);
     
     tn = t + dt;
+    Xn = Xi + (dt/6.0)*(k1 + 2.0*k2 + 2.0*k3 + k4);
+
+end
+
+%
+% Perform a single fourth-order Runge-Kutta step backwards in
+% time
+%
+function  [Xn, tn] = AP_rk4_step_backwards( Xi, t, velocity_f, dt )
+
+    k1 = -velocity_f(Xi, t);
+    k2 = -velocity_f(Xi + 0.5*dt*k1 , t - 0.5*dt);
+    k3 = -velocity_f(Xi + 0.5*dt*k2 , t - 0.5*dt);
+    k4 = -velocity_f(Xi + dt*k3 , t - dt);
+    
+    tn = t - dt;
     Xn = Xi + (dt/6.0)*(k1 + 2.0*k2 + 2.0*k3 + k4);
 
 end
