@@ -1,4 +1,5 @@
 % Test AnPar method for analytical simple shear example.
+% 21 steps looks good for Figure 8
 function test_AP_finite_strain_calculation(nstep)
       
    % power law exponent
@@ -31,12 +32,11 @@ function test_AP_finite_strain_calculation(nstep)
    
    ph = 0 ;   
    
-   vgradAR = vgradA ;
-   
-   FSE = [1.0 0.0 0.0; 0.0 0.5 0.0; 0.0 0.0 1.5];
+   % Initial FSE
    FSE = eye(3);
-   %FES = [sqrt(2) 0.0 sqrt(2) ;0 1 0; -sqrt(2) 0.0 sqrt(2)]
-   det(FSE)
+
+   % build random texture
+   [ texture ] = MVT_make_random_texture( 2000 ) ;
    
    for istep = 1:nstep
 
@@ -66,8 +66,9 @@ function test_AP_finite_strain_calculation(nstep)
       r13 = log(c(1)/c(3)) ; 
       
       % Update the texture here...
-      
-      % [cnew,R,ph] = finitestrain(c,vgradR,dt);
+
+      [texture] = ...
+            AP_Ol_texture_update(texture,rn,tau,vgrad,r12,r23,r13,dt);
       
       % Update the FSE for this strain incrememnt
       [FSE] = update_finitestrain_McK(FSE,vgrad,dt);
@@ -81,17 +82,23 @@ function test_AP_finite_strain_calculation(nstep)
       r23V(istep) = r23 ;
       r13V(istep) = r13 ;
       
-      phV(istep) = ph;
-      %if istep==1
-      %   phV(istep) = 0 ;
-      %else 
-      %   phV(istep) = phV(istep-1)+ph ;
-      %end
-      
-      
+      phV(istep) = ph;      
                             
    end
    
+   fprintf('Maximum r12 = %g\n', r12)
+   
+   % rotate the texture FoR to match Goulding et al Figure 8 (horizontal shear plane)
+   % This does not seem to be quite right.
+   [texture]=AP_rotate_texture_Euler(texture,0,0,(ph/pi)*180) ;
+   
+   % output the final texture    
+   MVT_write_VPSC_file('simple_shear.out', ...
+      texture, 'Simple shear output') ;
+      
+   % plot with MTEX
+   MVT_olivine_pole_from_vpsc('simple_shear.out','scale',[0 7], ...
+      'writefile','simple_shear','png') 
 
    % now compare
    
@@ -140,15 +147,7 @@ function test_AP_finite_strain_calculation(nstep)
    legend('r12 - numerical','r12 - analytical', ...
           'r23 - numerical','r23 - analytical', ...
           'r13 - numerical','r13 - analytical')
-   
-   vgradA(1,:,:)
-   vgradV(1,:,:)
-   
-   vgradA(2,:,:)
-   vgradV(2,:,:)
-   
-   vgradA(3,:,:)
-   vgradV(3,:,:)
+
    
 end
 
