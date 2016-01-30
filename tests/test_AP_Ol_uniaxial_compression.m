@@ -17,14 +17,17 @@ function test_AP_Ol_uniaxial_compression()
       
    % timestep
    dt = 0.02165 ;
-      
+   
+   % finite strain tensor 
+   FST = eye(3,3) ;
+
    % build random texture
    [ texture ] = MVT_make_random_texture( 2000 ) ;
       
    for istep = 1:istepmax
       
       % get FSE axes ratios
-      [r12,r23,r13] = finitestrain(vgrad,(istep-1)*dt) ;
+      [FST,r12,r23,r13] = finitestrain(FST,vgrad,dt) ;
       
       % run a texture calculation step
       [new_texture] = ...
@@ -48,31 +51,14 @@ function test_AP_Ol_uniaxial_compression()
 end
 
 
-function [r12,r23,r13] = finitestrain(vgrad,t) ;
+function [FST_new,r12,r23,r13] = finitestrain(FST,vgrad,t) ;
    
-   % Strain Rate Tensor
-   bige = zeros(3,3) ;
-   for i = 1:3
-      for j = 1:3
-         bige(i,j) = (vgrad(i,j) + vgrad(j,i))/2.d0 ;
-      end
-   end
-   
-   % finite strain ellipse
-   c1 = exp(bige(1,1)*t) ;
-   c2 = exp(bige(2,2)*t) ;
-   c3 = exp(bige(3,3)*t) ;
-   
+   [FST_new,c,~,~] = AP_update_finite_strain(FST,vgrad,t,eye(3,3)) ;
+
    % calculate log ratios
-   r12 = log(c1/c2) ;
-   r23 = log(c2/c3) ;
-   r13 = log(c1/c3) ;   
-   
-   % equivalent strain
-   eijsq = sum(sum(bige.^2)) ;
-   epseq = sqrt(2*eijsq/3)*t ;
-   
-   %disp(epseq)
+   r12 = log(c(1)/c(2)) ;
+   r23 = log(c(2)/c(3)) ;
+   r13 = log(c(1)/c(3)) ; 
    
 end
 
