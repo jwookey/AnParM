@@ -37,8 +37,6 @@ function test_AP_finite_strain_calculation_2(nstep)
          [FST,c,R,phV(istep)] = update_FST(FST,vgrad,dt,R) ;   
       end
 
-
-    
       % rotate the vgrad into the *current* FSE frame
       vgradR = R'*vgrad*R ;
       
@@ -61,7 +59,6 @@ function test_AP_finite_strain_calculation_2(nstep)
       r23V(istep) = r23 ;
       r13V(istep) = r13 ;
 
-      
       % done
       
 
@@ -134,7 +131,28 @@ function test_AP_finite_strain_calculation_2(nstep)
 end
 
 
-function [FST_new,c,R,ph] = update_FST(FST,vgrad,t,PreviousAxes) ;
+function [FST_new,c,R,ph] = update_FST(FST,vgrad,t,PrevR) ;
+% update the finite strain tensor based on an applied velocity gradient
+% tensor, following McKenzie (1979).
+%
+% Inputs: 
+%    FST    : Previous finite strain tensor (3x3)
+%    vgrad  : velocity gradient tensor (3x3)
+%    t      : deformation time
+%    PrevR  : the previous rotation matrix (3x3)*
+%
+% Outputs:
+%    FST_new : updated finite-strain tensor
+%    c       : axis lengths of the (new) finite strain ellipse
+%    R       : rotation matrix required to map a vector/tensor in
+%              the original cartesian reference frame onto that
+%              of the deformed FSE.
+%    ph      : minimum angle of this rotation
+%
+%  *The code calculates the principle axes of the finite strain ellipse, and 
+%  calculates the arrangement of these axes which imply the smallest rotation
+%  from the previous rotation. This is potentially rather a rate-limiting step.
+
    
    % form A and B matrix
    A = eye(3,3)-(0.5*t)*vgrad ;
@@ -149,7 +167,7 @@ function [FST_new,c,R,ph] = update_FST(FST,vgrad,t,PreviousAxes) ;
    
    % find the orientation of principle axes which most closely matches
    % the previous axes, i.e., the smallest possible rotation.
-   [index]=SortPrincipleAxes(EIVEC,PreviousAxes) 
+   [index]=SortPrincipleAxes(EIVEC,PrevR) 
    
    % index contains minimum distance axes.
    for ii=1:3
