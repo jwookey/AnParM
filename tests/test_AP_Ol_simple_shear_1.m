@@ -135,11 +135,11 @@ function [vgrad,ph,r12,r13,r23] = analytical_simple_shear(dt,nstep)
    
    vgrad = zeros(nstep,3,3) ;
    
-   ph = -0.5*atan(([1:nstep]-1)*dt) ;
+   ph = -0.5*atand(([1:nstep]-1)*dt) ;
    
    for istep=1:nstep
-      E = [ cos(2*ph(istep))  sin(2*ph(istep)) 0 ; ...
-            sin(2*ph(istep)) -cos(2*ph(istep)) 0 ; ...
+      E = [ cosd(2*ph(istep))  sind(2*ph(istep)) 0 ; ...
+            sind(2*ph(istep)) -cosd(2*ph(istep)) 0 ; ...
             0                 0                0 ] ;
       
       W = [ 0 -1 0 ; 1 0 0 ; 0 0 0 ] ;
