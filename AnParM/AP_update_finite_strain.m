@@ -97,7 +97,7 @@ function [FST_new,c,R,ph] = AP_update_finite_strain(FST,vgrad,t,PrevR) ;
    
    % find the orientation of principle axes which most closely matches
    % the previous axes, i.e., the smallest possible rotation.
-   [index]=SortPrincipleAxes(EIVEC,PrevR) 
+   [index]=SortPrincipleAxes(EIVEC,PrevR) ;
    
    % index contains minimum distance axes.
    for ii=1:3
