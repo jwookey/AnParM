@@ -65,19 +65,19 @@ function test_AP_Ol_simple_shear_1(nstep)
    end
 
    % output the final texture
-   % MVT_write_VPSC_file('simple_shear2.out', texture, 'Simple shear output')
+   MVT_write_VPSC_file('simple_shear2.out', texture, 'Simple shear output')
    
    % rotate the texture FoR to match Goulding et al Figure 8 (horizontal shear plane)
    % This does not seem to be quite right.
-   %[texture]=AP_rotate_texture_Euler(texture,0,0,(ph/pi)*180) ;
+   [texture]=AP_rotate_texture_Euler(texture,0,0,-45) ;
    
    % output the final texture    
-   %MVT_write_VPSC_file('simple_shear.out', ...
-   %   texture, 'Simple shear output') ;
+   MVT_write_VPSC_file('simple_shear.out', ...
+      texture, 'Simple shear output') ;
       
    % plot with MTEX
-   %MVT_olivine_pole_from_vpsc('simple_shear.out','scale',[0 7], ...
-   %   'writefile','simple_shear','png') 
+   MVT_olivine_pole_from_vpsc('simple_shear.out','scale',[0 7], ...
+      'writefile','simple_shear','png') 
 
    % compare with the analytical case
 
