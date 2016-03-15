@@ -1,11 +1,21 @@
-% AP_velocity_corner_flow - A example function for an arbitary flow field.
+% AP_make_corner_flow - A example function for an arbitary flow field.
 %
 % // Part of AnParM - A MATLAB toolkit for the fast analytical modelling of  //
 % //                         crystal deformation                             //
 %  
 %  Usage:
 %
-%     [V] = AP_velocity_corner_flow(X, t)
+%     [corner_flow_function] = AP_make_corner_flow(theta_0, U)
+%        Input parameters:
+%           theta_0 : angle corner makes with x axis, anticlockwise from
+%                     x-axis (in degrees)
+%           U       : velocity material flows along x-axis (or negative 
+%                     of the velocity that the corner moves)
+%
+%        Output:
+%           corner_flow_function : a function with the following interface
+%     
+%     [V] = corner_flow_function(X, t)
 %        Input parameters:
 %           X : position. 3D position in space.
 %           t : time. This example is for time invariant flow, so this 
@@ -14,11 +24,25 @@
 %        Output parameters:
 %           V : 3D velocity at point X and time t.
 %
-%  A simple analytically tractable example for testing.
+%  Many workers have made use of corner-flow solutions in geophysical
+%  applications (e.g. for flow below mid-ocean ridges, flow in the back-arc,
+%  and flow below a subducting slab). This generator function allows the 
+%  boundary conditions to be used to set up a function that can then be 
+%  called to evaluate the flow field at any point. Currently only the
+%  simple case described in Batchelor (1967) is implemented, but the API is
+%  general.
+% 
+%  NB: to avoid yet another layer of finite difference, we use the symbolic
+%      toolkit to find the derivatives of the stream function. This means
+%      that the symbilic toolkit must be installed. We could, in principal,
+%      use the toolkit to generate pure Matlab for the derivatives if we
+%      ever need a toolkit free version.
 %
-% Reference.
+% References
 % ~~~~~~~~~~
 %
+%  Batchelor, GK 'An introduction to fluid dynamics' CUP 1967
+% 
 %  Goulding, NG, Ribe, NM, Castelnau, O., Walker A. and Wookey, J. Analytical
 %     parameterization of self-consistent polycrystal mechanics: Fast calculation 
 %     of upper mantle anisotropy. Geophys. J. Int., in press.
@@ -54,38 +78,45 @@
 % ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 % POSSIBILITY OF SUCH DAMAGE.
 
-function [V] = AP_velocity_corner_flow(X, t)
+function [f] = AP_make_corner_flow(theta_0, U)
 
-    assert(all(size(X) == [3 1]), 'AP:argChk', ... 
-        'Location must be a 3 vector')
-    assert(all(size(t) == [1 1]), 'AP:argChk', ... 
-        'Time must be a 3 scalar')
+
+    theta_0 = degtorad(theta_0);
+    [~, fdphi_dr, fdphi_dtheta] = stream_function_and_derivs_batchelor;
+    f = @corner_flow_function;
     
-    theta_0 = 0.5*pi;
-    U = 1.0;
+    function [V] = corner_flow_function(X, t)
+        
+        assert(all(size(X) == [3 1]), 'AP:argChk', ... 
+            'Location must be a 3 vector')
+        assert(all(size(t) == [1 1]), 'AP:argChk', ... 
+            'Time must be a 3 scalar')
+        
+        % Convert x, y, z to r, theta, z
+        r = sqrt(X(1)^2 + X(2)^2);
+        theta = atan2(X(2), X(1));
+        
+        if (theta > theta_0)
+            warning('AP:boundsChk', ...
+                'Theta too large for boundary conditions, seting V to 0')
+            V = zeros(3,1);
+            return;
+        end
+        % We should also check r << mu/rho.U (Batchelor pg 226)
+        % but we don't know the density or viscosity. But as the viscosity 
+        % is massive, r is permitted to be quite a long way.
+     
+        % Calculate velocities from stream function
+        % c.f. Batchelor EQ 2.2.10 etc.
+        u_r = 1/r * fdphi_dtheta(r, theta, U, theta_0);
+        u_theta = -fdphi_dr(r, theta, U, theta_0);
     
-    % This should be passed in , or it will be slow!
-    persistent fdphi_dr;
-    persistent fdphi_dtheta;
-    if isempty(fdphi_dr)
-        [~, fdphi_dr, fdphi_dtheta] = ...
-            stream_function_and_derivs_batchelor;
+        % Convert velocities to cartesian frame
+        V = zeros(3,1);
+        V(1) = u_r * cos(theta) - u_theta * sin(theta);
+        V(2) = u_r * sin(theta) + u_theta * cos(theta);
+    
     end
-    
-    % Convert x, y, z to r, theta, z
-    r = sqrt(X(1)^2 + X(2)^2);
-    theta = atan2(X(2), X(1));
-    
-    
-    % Calculate velocities from stream function
-    % c.f. Batchelor EQ 2.2.10 etc.
-    u_r = 1/r * fdphi_dtheta(r, theta, U, theta_0);
-    u_theta = -fdphi_dr(r, theta, U, theta_0);
-    
-    % Convert velocities to cartesian frame
-    V = zeros(3,1);
-    V(1) = u_r * cos(theta) - u_theta * sin(theta);
-    V(2) = u_r * sin(theta) + u_theta * cos(theta);
 
 end
 
