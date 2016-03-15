@@ -78,11 +78,36 @@
 % ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 % POSSIBILITY OF SUCH DAMAGE.
 
-function [f] = AP_make_corner_flow(theta_0, U)
+function [f] = AP_make_corner_flow(theta_0, U, varargin)
+
+    % Default
+    method = 'batchelor';
+    % Process the optional arguments
+    iarg = 1 ;
+    while iarg<=(length(varargin))
+       switch varargin{iarg}
+          case 'method'
+             method = varargin{iarg + 1} ;
+             iarg = iarg + 2 ;
+          otherwise
+             error('Unknown flag') ;
+       end
+    end
 
 
     theta_0 = degtorad(theta_0);
-    [~, fdphi_dr, fdphi_dtheta] = stream_function_and_derivs_batchelor;
+    switch lower(method)
+        case('batchelor')
+            [~, fdphi_dr, fdphi_dtheta] = ...
+                stream_function_and_derivs_batchelor;
+        case('goulding')
+            [~, fdphi_dr, fdphi_dtheta] = ...
+                stream_function_and_derivs_goulding;
+        otherwise
+            error('AP:MAKE_CORNER_FLOW:UnknownMethod', ...
+                  'Specified method is not supported.') ;
+    end
+
     f = @corner_flow_function;
     
     function [V] = corner_flow_function(X, t)
@@ -119,6 +144,42 @@ function [f] = AP_make_corner_flow(theta_0, U)
     end
 
 end
+
+
+function [fphi, fdphi_dr, fdphi_dtheta] = ...
+    stream_function_and_derivs_goulding
+    % Returns Matlab functions for the stream function and the derivatives
+    % in theta and r for corner flow under a MOR with non-linear rheology 
+    % (n=3) following Goulding et al. 2015.
+
+    theta = sym('theta'); % Called phi in the paper
+    r = sym('r');
+    theta_0 = sym('theta_0'); % Called alpha in the paper
+    U = sym('U'); % Called U_0 in the paper
+
+    D = sym((3*pi)/(2*sqrt(5))); % EQ 31
+    phi = sym('phi'); % We will call the angle in h phi... and sub it later
+    h = 27*cos((sqrt(5)/3)*(phi+D))-cos(sqrt(5)*(phi+D)); %EQ30
+    dh_dphi = diff(h,phi); % pg 343 top
+    C = -1/(subs(h,theta_0)*cos(theta_0) - ...
+        subs(dh_dphi,theta_0)*sin(theta_0)); % EQ32
+    A = -C*(subs(h,theta_0)*sin(theta_0) + ...
+        subs(dh_dphi,theta_0)*cos(theta_0)); %EQ33
+    
+    f = A * sin(theta) + C*subs(h,theta); %EQ29
+    
+    Phi = U * r * f; %EQ28
+    
+    dPhi_dr = diff(Phi, r);
+    dPhi_dtheta = diff(Phi, theta);
+    
+    fphi = matlabFunction(Phi, 'vars', [r, theta, U, theta_0]);
+    fdphi_dr = matlabFunction(dPhi_dr, 'vars', [r, theta, U, theta_0]);
+    fdphi_dtheta = matlabFunction(dPhi_dtheta, ...
+        'vars', [r, theta, U, theta_0]);
+    
+end
+
 
 function [fphi, fdphi_dr, fdphi_dtheta] = ...
     stream_function_and_derivs_batchelor

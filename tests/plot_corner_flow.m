@@ -1,8 +1,8 @@
-% Use U ~1 and theta ~90 degrees
+% Use U ~1 and theta ~90 degrees and a method
 
-function plot_corner_flow(U, theta_0)
+function plot_corner_flow(U, theta_0, method)
 
-    [corner_flow_func] = AP_make_corner_flow(theta_0, U);
+    [corner_flow_func] = AP_make_corner_flow(theta_0, U, 'method', method);
 
     grid = 0.1:0.5:10;
     grid_len = length(grid);
