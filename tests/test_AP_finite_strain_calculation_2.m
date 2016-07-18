@@ -34,11 +34,9 @@ function test_AP_finite_strain_calculation_2(nstep)
           c=[1 1 1] ;
       else
          % calculate the rotation and axes change in FST
-         [FST,c,R,phV(istep)] = update_FST(FST,vgrad,dt,R) ;   
+         [FST,c,R,phV(istep)] = update_finite_strain(FST,vgrad,dt,R) ;   
       end
 
-
-    
       % rotate the vgrad into the *current* FSE frame
       vgradR = R'*vgrad*R ;
       
@@ -61,7 +59,6 @@ function test_AP_finite_strain_calculation_2(nstep)
       r23V(istep) = r23 ;
       r13V(istep) = r13 ;
 
-      
       % done
       
 
@@ -134,75 +131,7 @@ function test_AP_finite_strain_calculation_2(nstep)
 end
 
 
-function [FST_new,c,R,ph] = update_FST(FST,vgrad,t,PreviousAxes) ;
-   
-   % form A and B matrix
-   A = eye(3,3)-(0.5*t)*vgrad ;
-   B = eye(3,3)+(0.5*t)*vgrad ;
-   
-   % calculate the resulting Finite Strain Tensor.
-   FST_new = inv(A)*B*FST ;
-   
-   % calculate the Cauchy deformation tensor.
-   CDT = FST_new'*FST_new ;
-   [EIVEC, EIVAL] = eig(CDT) ;
-   
-   % find the orientation of principle axes which most closely matches
-   % the previous axes, i.e., the smallest possible rotation.
-   [index]=SortPrincipleAxes(EIVEC,PreviousAxes) 
-   
-   % index contains minimum distance axes.
-   for ii=1:3
-      R(:,ii) = sign(index(ii)).*EIVEC(:,abs(index(ii))) ;
-      c(ii)=sqrt(EIVAL(abs(index(ii)),abs(index(ii)))) ;
-   end
-   
-   % invert to get the rotation matrix.
-   R=inv(R) ;
 
-   ph=-acosd(dot([1 0 0]',R(:,1))) ;
-    
-end
-
-function [index]=SortPrincipleAxes(E,EPrev) ;
-% find the arrangement of the columns of 3x3 matrix E which represents
-% the smallest overall rotation from the previous
-% negative indices indicate the column values should be reversed.
-
-   index = [0 0 0] ;
-   found = [0 0 0] ;
-
-   for ii=1:3
-      angle = acosd(dot(E(:,ii),EPrev(:,1))) ;
-
-      if angle<45
-         index(1)=ii; break ;
-      elseif angle>135
-         index(1)=-ii; break ;
-      end 
-   end
-
-   found(abs(index(1)))=1 ;
-   for ii=find(found==0)
-      angle = acosd(dot(E(:,ii),EPrev(:,2))) ;
-      if angle<45
-         index(2)=ii; break ;
-      elseif angle>135
-         index(2)=-ii; break ;
-      end 
-   end
-
-   found(abs(index(2)))=1 ;
-   for ii=find(found==0)
-      angle = acosd(dot(E(:,ii),EPrev(:,3))) ;
-
-      if angle<45
-         index(3)=ii; break ;
-      elseif angle>135
-         index(3)=-ii; break ;
-      end 
-   end
-end  
 
 
 
