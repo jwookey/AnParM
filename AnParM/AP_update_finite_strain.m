@@ -118,6 +118,40 @@ function [index]=SortPrincipleAxes(E,EPrev) ;
 % negative indices indicate the column values should be reversed.
 
    index = [0 0 0] ;
+
+   addf = [0 0 0] ; % factor added to 'found' axes to make sure
+                    % that they are not the smallest. 
+
+   for jj=1:3
+      SignM = [1 1 1] ;
+
+      AngleM = [ acosd(dot(E(:,1),EPrev(:,jj))) , ...
+                 acosd(dot(E(:,2),EPrev(:,jj))) , ...
+                 acosd(dot(E(:,3),EPrev(:,jj))) ] ;
+   
+   
+      ind = find(AngleM>90) ;
+      SignM(ind)=-1 ;           
+      AngleM(ind) = 180-AngleM(ind) ;
+
+      AngleM = AngleM + addf ;
+
+      [~,ii] = min(AngleM) ;
+      index(jj) = SignM(ii)*ii ;
+
+      addf(abs(index(jj)))=180 ;
+
+
+   end
+   
+end
+
+function [index]=SortPrincipleAxes_old(E,EPrev) ;
+% find the arrangement of the columns of 3x3 matrix E which represents
+% the smallest overall rotation from the previous
+% negative indices indicate the column values should be reversed.
+
+   index = [0 0 0] ;
    found = [0 0 0] ;
 
    for ii=1:3
@@ -131,6 +165,7 @@ function [index]=SortPrincipleAxes(E,EPrev) ;
    end
 
    found(abs(index(1)))=1 ;
+
    for ii=find(found==0)
       angle = acosd(dot(E(:,ii),EPrev(:,2))) ;
       if angle<45
