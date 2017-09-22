@@ -92,33 +92,33 @@ function [Xs, Ls, ts] = AP_path_integrate( X0, tstart, tend, ...
         ts = fliplr(ts);
         Xs = fliplr(Xs);
         n = length(ts);
-        Ls = zeros(3, 3, n);
+        Ls = zeros(n, 3, 3);
         for i = 1:n
-            Ls(:,:,i) = Ls_f(:,:,(n-i)+1);
+            Ls(i,:,:) = Ls_f((n-i)+1,:,:);
         end
     else
 
         % Setup output arrays, n is the number of time steps to run
         % We include the first point in the output (hence the + 1)
         n = fix((tend - tstart)/dt) + 1;
-        Xs = zeros(3, n);
-        Ls = zeros(3, 3, n);
-        ts = zeros(1, n);
+        Xs = zeros(n, 3);
+        Ls = zeros(n, 3, 3);
+        ts = zeros(n, 1);
 
         % Loop over time steps of path line
         Xi = X0;
         ti = tstart;
         % Store first point
         ts(1) = ti;
-        Xs(:, 1) = Xi;
-        Ls(:, :, 1) = AP_veloc_grad(Xi, ti, velocity_f, dx);
+        Xs(1, :) = Xi;
+        Ls(1, :, :) = AP_veloc_grad(Xi, ti, velocity_f, dx);
         for i = 2:n
             % Update point
             [Xi, ti] = integrator( Xi, ti, velocity_f, dt );
             % Store current point
             ts(i) = ti;
-            Xs(:, i) = Xi;
-            Ls(:, :, i) = AP_veloc_grad(Xi, ti, velocity_f, dx);
+            Xs(i, :) = Xi;
+            Ls(i, :, :) = AP_veloc_grad(Xi, ti, velocity_f, dx);
         end
     
     end
